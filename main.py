@@ -1,50 +1,104 @@
-from flask import Flask, render_template, request, redirect, url_for
-import csv
 
+# A very simple Flask Hello World app for you to get started with...
 
-app= Flask("my flask app!")
+from flask import Flask, request, jsonify
+#from flask_cors import CORS
+#from datetime import datetime, timedelta
+import json
+#import random
 
-@app.route('/home')
-def home():
-	return render_template("index.html")
+app = Flask(__name__)
 
-@app.route('/blog/<id>/')
-def blog(id):
-	return "<h1>Showing blog no. </h1>" + id
+#CORS(app, resources={r"/*": {"origins": "*"}})
 
-@app.route('/bio')
-def mybio():
-	name = request.args.get('name')
-	age = request.args.get('age')
-	names=['a', 'b', 'c']
-	return render_template("index.html", name=name, age=age, names=names)
+raspberry = []
+jsonFile = open('raspberry.json', 'r')
+raspberryJson = json.load(jsonFile)
+for i in raspberryJson['raspberry']:
+    raspberry.append(i)
+showState = raspberryJson['show']
+jsonFile.close()
 
-@app.route('/upload', methods=['GET', 'POST'])
-def upload_data():
-	if request.method=='GET':
-		return render_template('upload.html')
-	else:
-		name = request.form.get('name')
-		age = request.form.get('age')
-		branch = request.form.get('branch')
+def getAll(scope):
+    if scope == '':
+        return jsonify(raspberry)
+    elif scope == 'temperatura' or scope == 'humedad' or scope == 'humo' or scope == 'luz':
+        subTiempo = [sub['tiempo'] for sub in raspberry]
+        subFeature = [sub[scope] for sub in raspberry]
 
-		with open("student_db.csv", "a") as f:
-			writer= csv.writer(f)
-			writer.writerow([name, age, branch])
+        feature = []
+        for i in range(len(subFeature)):
+             feature.append({
+                'tiempo': subTiempo[i],
+                scope: subFeature[i]
+            })
+        return jsonify(feature)
 
-		"""Alternative
-		with open("student_db.csv", "a") as f:
-			writer= csv.Dictwriter(f, fieldnames=["name", "age", "branch"]) 	_check
-			writer.writerow(request.form)
-		"""
+def postFeatures(req):
+    raspberry.append(req)
+    raspberryJson['raspberry'].append(req.json)
+    jsonFile = open('raspberry.json', 'w+')
+    jsonFile.write(json.dumps(raspberryJson))
+    jsonFile.close()
+    return 'Se agregó la información correctamente'
 
-		image = request.files.get('image')
-		image.save('static/images/'+image.filename)
-		return redirect(url_for('home'))
+def changeShowState(show):
+    global showState
+    showState = show
+    raspberryJson['show'] = show
+    jsonFile = open('raspberry.json', 'w+')
+    jsonFile.write(json.dumps(raspberryJson))
+    jsonFile.close()
+    return "Solicitud correcta. Status de Show cambiado."
 
+@app.route('/',methods = ['GET','POST','PUT'])
+def hello_world():
+    if request.method == 'GET':
+        if(showState):
+            return getAll('')
+        return []
+    if request.method == 'POST':
+        return postFeatures(request.json('raspberry'))
+    if request.method == 'PUT':
+        return changeShowState(request.json['show'])
 
-if __name__=="__main__":
-	app.run(host="0.0.0.0", port=7000, use_reloader=True)
+@app.route('/raspberry/features', methods = ['GET','POST','PUT'])
+def raspberryFeatures():
+    if request.method == 'GET':
+        if(showState):
+            return getAll('')
+        return []
+    if request.method == 'POST':
+        return postFeatures(request)
+    if request.method == 'PUT':
+        return changeShowState(request.json['show'])
 
+@app.route('/raspberry/features/temperatura', methods = ['GET'])
+def temperaturas():
+    global showState
+    if(showState):
+        return getAll('temperatura')
+    return []
 
-	"""myenv\Scripts\activate"""
+@app.route('/raspberry/features/humedad', methods = ['GET'])
+def humedades():
+    global showState
+    if(showState):
+        return getAll('humedad')
+    return []
+
+@app.route('/raspberry/features/humo', methods = ['GET'])
+def humos():
+    global showState
+    if(showState):
+        return getAll('humo')
+    return []
+
+@app.route('/raspberry/features/luz', methods = ['GET'])
+def luces():
+    global showState
+    if(showState):
+        return getAll('luz')
+    return []
+
+app.run(debug=True, port=8080)
