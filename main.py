@@ -2,7 +2,7 @@
 # A very simple Flask Hello World app for you to get started with...
 
 from flask import Flask, request, jsonify
-#from flask_cors import CORS
+from flask_cors import CORS
 #from datetime import datetime, timedelta
 import json
 #import random
@@ -101,4 +101,3 @@ def luces():
         return getAll('luz')
     return []
 
-app.run(debug=True, port=8080)
